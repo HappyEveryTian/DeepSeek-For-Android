@@ -4,3 +4,9 @@ plugins {
     id("org.jetbrains.kotlin.android") version "1.9.0" apply false
     id("com.android.library") version "8.1.2" apply false
 }
+
+buildscript {
+    dependencies {
+        classpath("com.android.tools.build:gradle:7.2.0")
+    }
+}
