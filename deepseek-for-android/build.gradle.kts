@@ -45,7 +45,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.caiyu.deepseek_for_android"
             artifactId = "deepseek_for_android"
-            version = "1.0.0"
+            version = "1.1.0"
 
             afterEvaluate {
                 from(components["release"])
