@@ -1,4 +1,4 @@
-package com.caiyu.deepseek_for_android
+package com.caiyu.deepseek_for_android.beans
 
 import com.google.gson.annotations.SerializedName
 

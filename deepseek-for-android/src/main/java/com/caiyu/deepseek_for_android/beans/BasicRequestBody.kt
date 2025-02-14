@@ -1,4 +1,4 @@
-package com.caiyu.deepseek_for_android
+package com.caiyu.deepseek_for_android.beans
 
 data class BasicRequestBody (
     val messages: List<Message>,
