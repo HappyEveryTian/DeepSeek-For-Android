@@ -204,9 +204,8 @@ class ToolMessage(
 ) : Message(content = content, role = "tool", name = name, prefix = null, reasoningContent = null, toolCallId = toolCallId)
 
 enum class Model(val value: String) {
-    CHAT("deepseek-chat"),
-    REASONER("deepseek-reasoner"),
-    CHAT_SILICONFLOW("deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+    DeepSeek_V3("deepseek-chat"),
+    DeepSeek_R1("deepseek-reasoner")
 }
 
 data class ModelOutputFormat private constructor(

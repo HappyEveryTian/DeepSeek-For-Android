@@ -3,6 +3,7 @@ package com.caiyu.deepseekdemo
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -20,7 +21,7 @@ class MainActivity : AppCompatActivity() {
     private val tag = "MainActivity"
     private lateinit var mDataBinding: ActivityMainBinding
     private lateinit var client: DeepSeekClient
-    private val token = ""  // 改为自己的deepseek api key
+    private val token = "sk-7f3ed690639d46b1a2b12faaf973f05a"  // 改为自己的deepseek api key
     private val token_silicaonflow = "" // 改为自己的siliconflow api key
     private val handler = Handler(Looper.getMainLooper())
     private val menuTextList = arrayOf("查询余额")
@@ -33,8 +34,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         mDataBinding = ActivityMainBinding.inflate(layoutInflater)
         client = DeepSeekClient.Builder()
-            .setToken(token_silicaonflow)
-            .setModel(Model.CHAT_SILICONFLOW)
+            .setToken(token)
+            .setModel(Model.DeepSeek_R1)
             .build()
 
         setContentView(mDataBinding.root)
@@ -44,11 +45,13 @@ class MainActivity : AppCompatActivity() {
     private fun initData() {
         mDataBinding.chatBtn.setOnClickListener {
             if (mDataBinding.chatTextarea.text.isNotEmpty()) {
+                val message = mDataBinding.chatTextarea.text.toString()
                 mDataBinding.chatTextarea.text.clear()
                 lifecycleScope.launch(Dispatchers.IO) {
-                    val result = client.chatWithSiliconflow(mDataBinding.chatTextarea.text.toString())
+                    val result = client.chat(message)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, result, Toast.LENGTH_SHORT).show()
+                        Log.d("TAG", "result: \n" + result)
                     }
                 }
 

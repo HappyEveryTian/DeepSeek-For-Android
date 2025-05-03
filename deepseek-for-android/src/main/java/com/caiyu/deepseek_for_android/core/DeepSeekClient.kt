@@ -1,7 +1,9 @@
 package com.caiyu.deepseek_for_android.core
 
+import android.util.Log
 import com.caiyu.deepseek_for_android.beans.BalanceBody
 import com.caiyu.deepseek_for_android.beans.BasicRequestBody
+import com.caiyu.deepseek_for_android.beans.DeepSeekRequestBody
 import com.caiyu.deepseek_for_android.beans.DeepSeekResponseBody
 import com.caiyu.deepseek_for_android.beans.Message
 import com.caiyu.deepseek_for_android.beans.Model
@@ -65,6 +67,7 @@ class DeepSeekClient private constructor (
             .build()
         return performNetworkRequest(request) {
             val responseBodyString = gson.fromJson(it, DeepSeekResponseBody::class.java)
+            Log.d("TAG", "" + responseBodyString.choices)
             return@performNetworkRequest responseBodyString.choices[0].message.content
         }
     }
@@ -123,8 +126,8 @@ class DeepSeekClient private constructor (
     }
 
     private fun createChatRequestBody(messages: List<Message>, model: Model): RequestBody {
-        val body = BasicRequestBody.create(messages, model)
-        val jsonBody =  gson.toJson(body, BasicRequestBody::class.java)
+        val body = DeepSeekRequestBody.create(messages, model)
+        val jsonBody =  gson.toJson(body, DeepSeekRequestBody::class.java)
         val mediaType = MediaType.APPLICATION_JSON.toMediaTypeOrNull()
         return jsonBody.toRequestBody(mediaType)
     }
@@ -156,7 +159,7 @@ class DeepSeekClient private constructor (
 
     class Builder {
         private var token: String? = null
-        private var model: Model = Model.CHAT
+        private var model: Model = Model.DeepSeek_R1
         fun setToken(token: String) = apply {
             this.token = token
         }
