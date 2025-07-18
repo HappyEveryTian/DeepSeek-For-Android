@@ -40,23 +40,10 @@ android {
         jvmTarget = "1.8"
     }
 }
-//
-//publishing {
-//    publications {
-//        register<MavenPublication>("release") {
-//            groupId = "com..cameraxmanager"
-//            artifactId = "cameraxmanager"
-//            version = "1.0.0"
-//
-//            afterEvaluate {
-//                from(components["release"])
-//            }
-//        }
-//    }
-//}
 
 dependencies {
     implementation(project(":deepseek-for-android"))
+    implementation("com.github.HappyEveryTian:BubbleMessageToast:1.0.0")
     implementation("androidx.recyclerview:recyclerview:1.2.1")
     implementation("com.github.li-xiaojun:XPopup:2.10.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

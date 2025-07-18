@@ -6,7 +6,7 @@ class DeepSeekRequestBody private constructor(
     @SerializedName("messages") val messages: List<Message>,
     @SerializedName("model") val model: String,
     @SerializedName("frequency_penalty") val frequencyPenalty: Number = 0,
-    @SerializedName("max_tokens") val maxTokens: Int = 4096,
+    @SerializedName("max_tokens") val maxTokens: Int = 32000,
     @SerializedName("presence_penalty") val presencePenalty: Number = 0,
     @SerializedName("response_format") val responseFormat: ModelOutputFormat = ModelOutputFormat.TEXT,
     @SerializedName("stop") val stop: Any? = null,
@@ -26,8 +26,8 @@ class DeepSeekRequestBody private constructor(
         require(frequencyPenalty.toDouble() in -2.0..2.0) {
             "frequency_penalty must be between -2 and 2, but was $frequencyPenalty"
         }
-        require(maxTokens in 2..8191) {
-            "Value must be greater than 1 and less than 8192, but was $maxTokens."
+        require(maxTokens in 1..64000) {
+            "Value must be greater than 1 and less than 64000, but was $maxTokens."
         }
         require(presencePenalty.toDouble() in -2.0..2.0) {
             "frequency_penalty must be between -2 and 2, but was $presencePenalty"
@@ -59,11 +59,11 @@ class DeepSeekRequestBody private constructor(
             messages: List<Message>,
             model: Model,
             frequencyPenalty: Number = 0,
-            maxTokens: Int = 4096,
+            maxTokens: Int = 32000,
             presencePenalty: Number = 0,
             responseFormat: ModelOutputFormat = ModelOutputFormat.TEXT,
             stop: StringOrList? = null,
-            stream: Boolean = false,
+            stream: Boolean = true,
             streamOptions: StreamOptions? = null,
             temperature: Number = 1,
             topP: Number = 1,
@@ -93,11 +93,11 @@ class DeepSeekRequestBody private constructor(
             messages: List<Message>,
             model: Model,
             frequencyPenalty: Number = 0,
-            maxTokens: Int = 4096,
+            maxTokens: Int = 32000,
             presencePenalty: Number = 0,
             responseFormat: ModelOutputFormat = ModelOutputFormat.TEXT,
             stop: StringOrList? = null,
-            stream: Boolean = false,
+            stream: Boolean = true,
             streamOptions: StreamOptions? = null,
             temperature: Number = 1,
             topP: Number = 1,
@@ -129,7 +129,7 @@ class DeepSeekRequestBody private constructor(
             messages: List<Message>,
             model: Model,
             frequencyPenalty: Number = 0,
-            maxTokens: Int = 4096,
+            maxTokens: Int = 32000,
             presencePenalty: Number = 0,
             responseFormat: ModelOutputFormat = ModelOutputFormat.TEXT,
             stop: StringOrList? = null,
@@ -139,7 +139,7 @@ class DeepSeekRequestBody private constructor(
             topP: Number = 1,
             tools: List<Tool>,
             toolChoice: ToolChoice.ChatCompletionNamedToolChoice,
-            logprobs: Boolean = false,
+            logprobs: Boolean = true,
             topLogprobs: Int? = null
         ): DeepSeekRequestBody {
             return DeepSeekRequestBody(
