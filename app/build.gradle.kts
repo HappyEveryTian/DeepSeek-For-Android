@@ -1,4 +1,5 @@
 import com.android.build.gradle.internal.utils.createPublishingInfoForLibrary
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -17,6 +18,20 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+
+        buildFeatures {
+            buildConfig = true
+            viewBinding = true
+        }
+
+        // 配置deepseek api key在local.properties中对应的属性
+        val properties = Properties()
+        val localPropertiesFile = project.rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            properties.load(localPropertiesFile.inputStream())
+        }
+        buildConfigField("String", "DEEPSEEK_API_KEY", "\"${properties.getProperty("deepseek.api.key")}\"")
     }
 
     buildTypes {
@@ -29,9 +44,6 @@ android {
         }
     }
 
-    buildFeatures {
-        viewBinding = true
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8

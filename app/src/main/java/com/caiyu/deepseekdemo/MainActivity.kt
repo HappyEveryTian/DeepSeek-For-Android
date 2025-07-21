@@ -21,8 +21,7 @@ class MainActivity : AppCompatActivity() {
     private val tag = "MainActivity"
     private lateinit var mDataBinding: ActivityMainBinding
     private lateinit var client: DeepSeekClient
-    private val token = "sk-7f3ed690639d46b1a2b12faaf973f05a"  // 改为自己的deepseek api key
-    private val token_silicaonflow = "" // 改为自己的siliconflow api key
+    private val token by lazy { BuildConfig.DEEPSEEK_API_KEY }
     private val handler = Handler(Looper.getMainLooper())
     private val menuTextList = arrayOf("查询余额")
     private val menuIconList = arrayOf(R.drawable.balance_check)
@@ -51,7 +50,7 @@ class MainActivity : AppCompatActivity() {
                     val result = client.chat(message)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, result, Toast.LENGTH_SHORT).show()
-                        Log.d("TAG", "result: \n" + result)
+                        Log.d("TAG", "result: \n$result")
                     }
                 }
 
