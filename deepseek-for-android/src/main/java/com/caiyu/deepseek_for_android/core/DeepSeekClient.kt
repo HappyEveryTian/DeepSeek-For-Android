@@ -11,13 +11,14 @@ import com.caiyu.deepseek_for_android.utils.Header
 import com.caiyu.deepseek_for_android.utils.MediaType
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okio.Buffer
 import java.io.IOException
 import java.net.SocketTimeoutException
 
@@ -29,10 +30,6 @@ class DeepSeekClient private constructor (
     private val tag: String = "DeepSeekClient"
     private val gson = GsonBuilder().setPrettyPrinting().create()
     private val client = OkHttpClient().newBuilder()
-//        .connectTimeout(60, TimeUnit.SECONDS)
-//        .callTimeout(60, TimeUnit.SECONDS)
-//        .readTimeout(60, TimeUnit.SECONDS)
-//        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
     fun setModel(model: Model) {
@@ -42,33 +39,6 @@ class DeepSeekClient private constructor (
     fun setToken(token: String) {
         this.token = token
     }
-
-//    /**
-//     * 基础的对话接口，采用user角色
-//     */
-//    suspend fun chat(message: String): String {
-//        val messages = ArrayList<Message>()
-//        messages.add(UserMessage(message))
-//        return chatWithMuitiplyMessage(messages, model)
-//    }
-//
-//    /**
-//     * 进阶的对话接口，开发者可以自定义传入的Message类型，不限于user角色
-//     * 注意: Message列表每种Message类型最多出现一次，否则可能会出现不可预料的结果
-//     */
-//    suspend fun chatWithMuitiplyMessage(messages: List<Message>, model: Model): String {
-//        val requestBody = createChatRequestBody(messages, model)
-//        val request: Request = Request.Builder()
-//            .url(ApiConstants.API_CHAT_COMPLETIONS)
-//            .post(requestBody)
-//            .addHeader(Header.CONTENT_TYPE, MediaType.APPLICATION_JSON)
-//            .addHeader(Header.ACCEPT, MediaType.TEXT_EVENT_STREAM)
-//            .addHeader(Header.AUTHORIZATION, "Bearer $token")
-//            .build()
-//        return performStreamRequest(request) {
-//
-//        }
-//    }
 
     /**
      * deepseek api 账户余额查询, 返回字符串结果
@@ -85,6 +55,9 @@ class DeepSeekClient private constructor (
         }
     }
 
+    /**
+     * （已弃用）deepseek api账户余额查询，返回响应体
+     */
     suspend fun getBalanceResponse(): BalanceBody? {
         val request = Request.Builder()
             .url(ApiConstants.API_USER_BALANCE)
@@ -134,19 +107,13 @@ class DeepSeekClient private constructor (
     /**
      * 执行流式网络请求
      */
-    suspend fun performStreamRequest(
-        request: Request,
-        onData: suspend (DeepSeekResponseBody) -> Unit,
-        onComplete: suspend () -> Unit,
-        onError: suspend (Exception) -> Unit
-    ) = withContext(Dispatchers.IO) {
+    fun performStreamRequestFlow(request: Request): Flow<String> = flow {
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("Unexpected code $response")
             response.body?.source()?.use { source ->
                 var line: String?
                 // 逐行解析 SSE 格式的响应
                 while (true) {
-                    ensureActive()
                     line = try {
                         source.readUtf8Line()
                     } catch (e: Exception) {
@@ -158,24 +125,26 @@ class DeepSeekClient private constructor (
                     if (line.startsWith("data: ")) {
                         val data = line.substring(6).trim()
                         if (data == "[DONE]") {
-                            withContext(Dispatchers.Main) {
-                                onComplete()
-                            }
-                            break
+                            break // 完成信号，终止流
                         } else {
                             try {
                                 val streamResponse = gson.fromJson(data, DeepSeekResponseBody::class.java)
-                                onData(streamResponse)
+                                val content = streamResponse.choices.firstOrNull()?.delta?.content
+                                val reasoningContent = streamResponse.choices.firstOrNull()?.delta?.reasoningContent
+                                Log.d(tag, "Content: $content")
+                                Log.d(tag, "ReasoningContent: $reasoningContent")
+                                content?.let { emit(it) }
+                                reasoningContent?.let { emit(it) }
                             } catch (e: Exception) {
-                                onError(e)
+                                throw e // 让 Flow 处理异常
                             }
                         }
                     }
                 }
-            } ?: onError(IOException("Response body is null"))
+            } ?: throw IOException("Response body is null")
             Log.d(tag, "response: End")
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     private suspend fun performNetworkRequest(
         request: Request,

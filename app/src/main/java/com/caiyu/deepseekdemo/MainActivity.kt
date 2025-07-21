@@ -1,9 +1,13 @@
 package com.caiyu.deepseekdemo
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.caiyu.bubblemessagetoast.BubbleMessageToast
@@ -14,14 +18,17 @@ import com.caiyu.deepseekdemo.databinding.ActivityMainBinding
 import com.lxj.xpopup.XPopup
 import com.lxj.xpopup.impl.AttachListPopupView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     private val tag = "MainActivity"
     private lateinit var mDataBinding: ActivityMainBinding
-    private lateinit var client: DeepSeekClient
-    private val token by lazy { BuildConfig.DEEPSEEK_API_KEY }
+    private val viewModel by lazy { ViewModelProvider(this)[MainActivityViewModel::class.java] }
     private val menuTextList = arrayOf("查询余额")
     private val menuIconList = arrayOf(R.drawable.balance_check)
     private val chatList: MutableList<ChatMessage> = mutableListOf()
@@ -32,13 +39,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mDataBinding = ActivityMainBinding.inflate(layoutInflater)
-        client = DeepSeekClient.Builder()
-            .setToken(token)
-            .setModel(Model.DeepSeek_R1)
-            .build()
 
         setContentView(mDataBinding.root)
         initData()
+
+        observers()
     }
 
     private fun initData() {
@@ -50,50 +55,45 @@ class MainActivity : AppCompatActivity() {
         mDataBinding.chatList.adapter = adapter
     }
 
-    private fun chatClick() {
-        if (mDataBinding.chatTextarea.text.isNotEmpty()) {
-            val message = mDataBinding.chatTextarea.text.toString()
-            mDataBinding.chatTextarea.text.clear()
-            adapter.addData(ChatMessage.UserMessage(message))
-            val request = client.createChatRequest(listOf(UserMessage(message)))
-            lifecycleScope.launch(Dispatchers.IO) {
-                withContext(Dispatchers.Main) {
-                    adapter.addData(ChatMessage.ResponseMessage(""))
+    private fun observers() {
+        lifecycleScope.launch {
+            mDataBinding.chatTextArea.textChanges()
+                .collect { text ->
+                    viewModel.setText(text.toString())
                 }
-                var content: String?
-                var resoningContent: String?
-                client.performStreamRequest(
-                    request = request,
-                    onData = { response ->
-                        content = response.choices.firstOrNull()?.delta?.content
-                        resoningContent = response.choices.firstOrNull()?.delta?.reasoningContent
-                        Log.d(tag, "receivedContent: $content")
-                        Log.d(tag, "receivedReasoningContent: $resoningContent")
-                        withContext(Dispatchers.Main) {
-                            resoningContent?.let {
-                                adapter.addStreamData(it)
-                            }
-                            content?.let {
-                                adapter.addStreamData(it)
-                            }
-                        }
-                    },
-                    onError = { error ->
-                        Log.d(tag, "error: $error\n")
-                        withContext(Dispatchers.Main) {
-                            BubbleMessageToast.show(this@MainActivity, error.toString(), BubbleMessageToast.FAILED)
-                        }
-                    },
-                    onComplete = {
-                        withContext(Dispatchers.Main) {
-                            BubbleMessageToast.show(this@MainActivity, "请求成功", BubbleMessageToast.SUCCESS)
-                        }
-                    }
-                )
+        }
+
+        lifecycleScope.launch {
+            viewModel.chatTextArea.collect { newText ->
+                if (mDataBinding.chatTextArea.text.toString() != newText) {
+                    mDataBinding.chatTextArea.setText(newText)
+                }
             }
         }
 
-        mDataBinding.settingsBtn.setOnClickListener { showPopupView() }
+    }
+
+    private fun chatClick() {
+        if (mDataBinding.chatTextArea.text.isNotEmpty()) {
+            val message = viewModel.getText()
+            viewModel.clearText()
+            adapter.addData(ChatMessage.UserMessage(message))
+            val request = viewModel.createChatRequest(listOf(UserMessage(message)))
+            adapter.addData(ChatMessage.ResponseMessage(""))
+            lifecycleScope.launch {
+                try {
+                    viewModel.performStreamRequestFlow(request)
+                        .collect { content ->
+                            delay(30)
+                            adapter.updateMessageStream(content)
+                        }
+                    BubbleMessageToast.show(this@MainActivity, "请求成功", BubbleMessageToast.SUCCESS)
+                } catch (e: Exception) {
+                    Log.d(tag, "error: ${e.message}")
+                    BubbleMessageToast.show(this@MainActivity, e.message ?: "请求失败", BubbleMessageToast.FAILED)
+                }
+            }
+        }
     }
 
     private fun showPopupView() {
@@ -107,7 +107,7 @@ class MainActivity : AppCompatActivity() {
                     when (position) {
                         0 -> {
                             lifecycleScope.launch(Dispatchers.IO) {
-                                val result = client.getBalanceStringResponse()
+                                val result = viewModel.getBalance()
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(this@MainActivity, result, Toast.LENGTH_SHORT).show()
                                 }
@@ -120,5 +120,24 @@ class MainActivity : AppCompatActivity() {
                 }
         }
         popupView.show()
+    }
+
+    override fun onDestroy() {
+        adapter.release()
+        super.onDestroy()
+    }
+
+    fun EditText.textChanges(): Flow<CharSequence> = callbackFlow {
+        val listener = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence, p1: Int, p2: Int, p3: Int) {}
+            override fun onTextChanged(s: CharSequence, p1: Int, p2: Int, p3: Int) {}
+            override fun afterTextChanged(s: Editable) {
+                trySend(s)
+            }
+        }
+
+        addTextChangedListener(listener)
+
+        awaitClose { removeTextChangedListener(listener) }
     }
 }

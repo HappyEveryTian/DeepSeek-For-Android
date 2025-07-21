@@ -46,7 +46,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
         <EditText
-            android:id="@+id/chat_textarea"
+            android:id="@+id/chat_textArea"
             android:layout_width="0dp"
             android:layout_weight="4"
             android:layout_height="40dp"

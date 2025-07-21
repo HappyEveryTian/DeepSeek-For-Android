@@ -9,17 +9,9 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 
 class ChatAdapter(private val list: MutableList<ChatMessage>) : RecyclerView.Adapter<ViewHolder>() {
-    // 数据处理器实例
-    private val streamProcessor = StreamDataProcessor()
+    private var currentResponseIndex: Int = -1
 
-    init {
-        // 设置数据消费者
-        streamProcessor.setDataConsumer { mergedData ->
-            if (list.isNotEmpty()) {
-                updateMessageStream(mergedData)
-            }
-        }
-    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         return when(viewType) {
             ChatMessage.VIEW_TYPE_USER -> {
@@ -51,19 +43,12 @@ class ChatAdapter(private val list: MutableList<ChatMessage>) : RecyclerView.Ada
     override fun getItemViewType(position: Int) = list[position].getItemType()
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val chatMessage = list[position]
-        val itemTpye = chatMessage.getItemType()
-        when (itemTpye) {
-            ChatMessage.VIEW_TYPE_USER -> {
-                (holder as UserMessageViewHolder).apply {
-                    bind((chatMessage as ChatMessage.UserMessage).content)
-                }
-            }
-            else -> {
-                (holder as ResponseMessageViewHolder).apply {
-                    updateText((chatMessage as ChatMessage.ResponseMessage).content)
-                }
-            }
+        when (val chatMessage = list[position]) {
+            is ChatMessage.UserMessage ->
+                (holder as UserMessageViewHolder).bind(chatMessage.content)
+            is ChatMessage.ResponseMessage ->
+                (holder as ResponseMessageViewHolder).bind(chatMessage.content)
+            else -> {}
         }
     }
 
@@ -84,24 +69,24 @@ class ChatAdapter(private val list: MutableList<ChatMessage>) : RecyclerView.Ada
     fun addData(chatMessage: ChatMessage) {
         list.add(chatMessage)
         this.notifyItemInserted(list.size - 1)
+        if (chatMessage is ChatMessage.ResponseMessage) {
+            currentResponseIndex = list.size - 1
+        }
     }
 
-    fun addStreamData(chunk: String) {
-        streamProcessor.addData(chunk)
-    }
-
-
-    private fun updateMessageStream(chunk: String) {
-        (list.lastOrNull() as ChatMessage.ResponseMessage).let { message ->
-            synchronized(message) {
+    fun updateMessageStream(chunk: String) {
+        if (currentResponseIndex >= 0 && currentResponseIndex < list.size) {
+            val message = list[currentResponseIndex]
+            if (message is ChatMessage.ResponseMessage) {
                 message.content += chunk
-                this.notifyItemChanged(list.size - 1, chunk)
+                notifyItemChanged(currentResponseIndex, chunk)
             }
         }
     }
 
     fun release() {
-        streamProcessor.release()
+        list.clear()
+        currentResponseIndex = -1
     }
 
     inner class UserMessageViewHolder(view: View) : ViewHolder(view) {
@@ -125,17 +110,12 @@ class ChatAdapter(private val list: MutableList<ChatMessage>) : RecyclerView.Ada
             avatar.setBackgroundResource(R.drawable.deepseek_icon)
         }
 
+        fun bind(content: String) {
+            text.text = content
+        }
+
         fun updateText(newContent: String?) {
-            newContent?.let {
-                text.post {
-                    text.text = buildString {
-                        if (text.text != null) {
-                            append(text.text.toString())
-                        }
-                        append(it)
-                    }
-                }
-            }
+            text.append(newContent)
         }
     }
 }
